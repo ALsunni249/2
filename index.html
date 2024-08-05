@@ -58,6 +58,46 @@
         const paddleImage = new Image();
         paddleImage.src = 'paddle.png'; // مسار صورة المضرب
 
+        // إضافة العقبات المتحركة
+        const obstacles = [];
+        const obstacleWidth = 60;
+        const obstacleHeight = 20;
+        const obstacleSpeed = 2;
+
+        // إضافة العقبات بشكل عشوائي
+        function createObstacles() {
+            for (let i = 0; i < 5; i++) {
+                let obstacleX = Math.random() * (canvas.width - obstacleWidth);
+                let obstacleY = Math.random() * (canvas.height / 2);
+                obstacles.push({ x: obstacleX, y: obstacleY, dx: obstacleSpeed });
+            }
+        }
+
+        // رسم العقبات
+        function drawObstacles() {
+            ctx.fillStyle = "#FF0000";
+            for (let i = 0; i < obstacles.length; i++) {
+                let ob = obstacles[i];
+                ctx.fillRect(ob.x, ob.y, obstacleWidth, obstacleHeight);
+                ob.x += ob.dx;
+
+                // تغيير الاتجاه عند الاصطدام بالجدران
+                if (ob.x + obstacleWidth > canvas.width || ob.x < 0) {
+                    ob.dx = -ob.dx;
+                }
+            }
+        }
+
+        // التحقق من اصطدام الكرة بالعقبات
+        function checkObstacleCollision() {
+            for (let i = 0; i < obstacles.length; i++) {
+                let ob = obstacles[i];
+                if (x > ob.x && x < ob.x + obstacleWidth && y > ob.y && y < ob.y + obstacleHeight) {
+                    document.location.reload(); // إعادة تشغيل اللعبة عند الاصطدام
+                }
+            }
+        }
+
         function drawBall() {
             ctx.beginPath();
             ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
@@ -79,6 +119,8 @@
             drawBackground();
             drawBall();
             drawPaddle();
+            drawObstacles();
+            checkObstacleCollision();
             updateScore();
 
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
@@ -134,6 +176,7 @@
         document.addEventListener("keyup", keyUpHandler, false);
 
         backgroundImage.onload = function () {
+            createObstacles();
             setInterval(draw, 10);
         };
     </script>
