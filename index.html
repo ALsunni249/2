@@ -98,6 +98,54 @@
             }
         }
 
+        // إضافة Power-ups
+        const powerUps = [];
+        const powerUpSize = 20;
+
+        function createPowerUps() {
+            let powerUpX = Math.random() * (canvas.width - powerUpSize);
+            let powerUpY = Math.random() * (canvas.height / 2);
+            const types = ['expand', 'shrink', 'slow'];
+            let type = types[Math.floor(Math.random() * types.length)];
+            powerUps.push({ x: powerUpX, y: powerUpY, type: type });
+        }
+
+        // رسم Power-ups
+        function drawPowerUps() {
+            for (let i = 0; i < powerUps.length; i++) {
+                let pu = powerUps[i];
+                if (pu.type === 'expand') {
+                    ctx.fillStyle = "#00FF00"; // لون مميز
+                } else if (pu.type === 'shrink') {
+                    ctx.fillStyle = "#0000FF"; // لون مميز
+                } else if (pu.type === 'slow') {
+                    ctx.fillStyle = "#FFFF00"; // لون مميز
+                }
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y, powerUpSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        // التحقق من اصطدام الكرة بـ Power-ups
+        function checkPowerUpCollision() {
+            for (let i = 0; i < powerUps.length; i++) {
+                let pu = powerUps[i];
+                if (x > pu.x - powerUpSize / 2 && x < pu.x + powerUpSize / 2 && y > pu.y - powerUpSize / 2 && y < pu.y + powerUpSize / 2) {
+                    if (pu.type === 'expand') {
+                        paddleWidth += 20; // زيادة عرض المضرب
+                    } else if (pu.type === 'shrink') {
+                        paddleWidth = Math.max(50, paddleWidth - 20); // تقليل عرض المضرب
+                    } else if (pu.type === 'slow') {
+                        dx *= 0.8;
+                        dy *= 0.8; // تقليل سرعة الكرة
+                    }
+                    powerUps.splice(i, 1); // إزالة Power-up بعد الاستخدام
+                }
+            }
+        }
+
         function drawBall() {
             ctx.beginPath();
             ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
@@ -120,7 +168,9 @@
             drawBall();
             drawPaddle();
             drawObstacles();
+            drawPowerUps();
             checkObstacleCollision();
+            checkPowerUpCollision();
             updateScore();
 
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
@@ -136,6 +186,7 @@
                         level++;
                         dx *= 1.2;
                         dy *= 1.2;
+                        createPowerUps(); // إضافة Power-up عند كل مستوى جديد
                     }
                 } else {
                     document.location.reload();
