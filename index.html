@@ -25,11 +25,44 @@
             font-size: 24px;
             font-family: Arial, sans-serif;
         }
+        #time {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #pauseBtn {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            font-size: 18px;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+        }
+        #instructions {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            width: 70%;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="score">النقاط: 0 | المستوى: 1</div>
+    <div id="time">الوقت: 0 ثانية</div>
+    <button id="pauseBtn">إيقاف مؤقت</button>
+    <div id="instructions">
+        استخدم الأسهم للتحكم بالمضرب أو اسحب باللمس. الهدف هو الإمساك بالكرة وتجنب العقبات. جمع Power-ups للحصول على ميزات إضافية!
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -50,7 +83,11 @@
 
         let score = 0;
         let level = 1;
+        let isPaused = false;
+        let startTime = Date.now();
         const scoreElement = document.getElementById('score');
+        const timeElement = document.getElementById('time');
+        const pauseBtn = document.getElementById('pauseBtn');
 
         const backgroundImage = new Image();
         backgroundImage.src = 'background.jpg'; // مسار صورة الخلفية
@@ -58,41 +95,44 @@
         const paddleImage = new Image();
         paddleImage.src = 'paddle.png'; // مسار صورة المضرب
 
+        // أصوات اللعبة
+        const hitSound = new Audio('assets/sounds/hit.wav');
+        const gameOverSound = new Audio('assets/sounds/game-over.wav');
+        const levelUpSound = new Audio('assets/sounds/level-up.wav');
+        const powerUpSound = new Audio('assets/sounds/power-up.wav');
+
         // إضافة العقبات المتحركة
         const obstacles = [];
         const obstacleWidth = 60;
         const obstacleHeight = 20;
         const obstacleSpeed = 2;
 
-        // إضافة العقبات بشكل عشوائي
         function createObstacles() {
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 5 + level; i++) { // زيادة العقبات مع زيادة المستوى
                 let obstacleX = Math.random() * (canvas.width - obstacleWidth);
                 let obstacleY = Math.random() * (canvas.height / 2);
                 obstacles.push({ x: obstacleX, y: obstacleY, dx: obstacleSpeed });
             }
         }
 
-        // رسم العقبات
         function drawObstacles() {
             ctx.fillStyle = "#FF0000";
             for (let i = 0; i < obstacles.length; i++) {
                 let ob = obstacles[i];
                 ctx.fillRect(ob.x, ob.y, obstacleWidth, obstacleHeight);
                 ob.x += ob.dx;
-
-                // تغيير الاتجاه عند الاصطدام بالجدران
                 if (ob.x + obstacleWidth > canvas.width || ob.x < 0) {
                     ob.dx = -ob.dx;
                 }
             }
         }
 
-        // التحقق من اصطدام الكرة بالعقبات
         function checkObstacleCollision() {
             for (let i = 0; i < obstacles.length; i++) {
                 let ob = obstacles[i];
                 if (x > ob.x && x < ob.x + obstacleWidth && y > ob.y && y < ob.y + obstacleHeight) {
+                    gameOverSound.play();
+                    saveHighScore();
                     document.location.reload(); // إعادة تشغيل اللعبة عند الاصطدام
                 }
             }
@@ -110,16 +150,15 @@
             powerUps.push({ x: powerUpX, y: powerUpY, type: type });
         }
 
-        // رسم Power-ups
         function drawPowerUps() {
             for (let i = 0; i < powerUps.length; i++) {
                 let pu = powerUps[i];
                 if (pu.type === 'expand') {
-                    ctx.fillStyle = "#00FF00"; // لون مميز
+                    ctx.fillStyle = "#00FF00";
                 } else if (pu.type === 'shrink') {
-                    ctx.fillStyle = "#0000FF"; // لون مميز
+                    ctx.fillStyle = "#0000FF";
                 } else if (pu.type === 'slow') {
-                    ctx.fillStyle = "#FFFF00"; // لون مميز
+                    ctx.fillStyle = "#FFFF00";
                 }
                 ctx.beginPath();
                 ctx.arc(pu.x, pu.y, powerUpSize / 2, 0, Math.PI * 2);
@@ -128,20 +167,20 @@
             }
         }
 
-        // التحقق من اصطدام الكرة بـ Power-ups
         function checkPowerUpCollision() {
             for (let i = 0; i < powerUps.length; i++) {
                 let pu = powerUps[i];
                 if (x > pu.x - powerUpSize / 2 && x < pu.x + powerUpSize / 2 && y > pu.y - powerUpSize / 2 && y < pu.y + powerUpSize / 2) {
+                    powerUpSound.play();
                     if (pu.type === 'expand') {
-                        paddleWidth += 20; // زيادة عرض المضرب
+                        paddleWidth += 20;
                     } else if (pu.type === 'shrink') {
-                        paddleWidth = Math.max(50, paddleWidth - 20); // تقليل عرض المضرب
+                        paddleWidth = Math.max(50, paddleWidth - 20);
                     } else if (pu.type === 'slow') {
                         dx *= 0.8;
-                        dy *= 0.8; // تقليل سرعة الكرة
+                        dy *= 0.8;
                     }
-                    powerUps.splice(i, 1); // إزالة Power-up بعد الاستخدام
+                    powerUps.splice(i, 1);
                 }
             }
         }
@@ -163,6 +202,8 @@
         }
 
         function draw() {
+            if (isPaused) return;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawBackground();
             drawBall();
@@ -172,6 +213,7 @@
             checkObstacleCollision();
             checkPowerUpCollision();
             updateScore();
+            updateTime();
 
             if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
                 dx = -dx;
@@ -182,13 +224,18 @@
                 if (x > paddleX && x < paddleX + paddleWidth) {
                     dy = -dy;
                     score++;
-                    if (score % 5 === 0) { // زيادة المستوى كل 5 نقاط
+                    hitSound.play();
+                    if (score % 5 === 0) {
                         level++;
                         dx *= 1.2;
                         dy *= 1.2;
-                        createPowerUps(); // إضافة Power-up عند كل مستوى جديد
+                        createObstacles(); // زيادة العقبات مع كل مستوى جديد
+                        createPowerUps();
+                        levelUpSound.play();
                     }
                 } else {
+                    gameOverSound.play();
+                    saveHighScore();
                     document.location.reload();
                 }
             }
@@ -207,6 +254,19 @@
             scoreElement.textContent = `النقاط: ${score} | المستوى: ${level}`;
         }
 
+        function updateTime() {
+            let elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+            timeElement.textContent = `الوقت: ${elapsedTime} ثانية`;
+        }
+
+        function saveHighScore() {
+            let highScore = localStorage.getItem('highScore') || 0;
+            if (score > highScore) {
+                localStorage.setItem('highScore', score);
+                alert('لقد حققت أعلى نتيجة جديدة!');
+            }
+        }
+
         function keyDownHandler(e) {
             if (e.key === "Right" || e.key === "ArrowRight") {
                 rightPressed = true;
@@ -223,8 +283,38 @@
             }
         }
 
+        function pauseGame() {
+            isPaused = !isPaused;
+            pauseBtn.textContent = isPaused ? 'استئناف' : 'إيقاف مؤقت';
+        }
+
+        // دعم للأجهزة اللمسية
+        function touchMoveHandler(e) {
+            let touchX = e.touches[0].clientX - canvas.offsetLeft;
+            paddleX = touchX - paddleWidth / 2;
+        }
+
+        // مشاركة النتائج
+        function shareScore() {
+            const shareText = `لقد حققت ${score} نقاط في لعبة Catch the Ball!`;
+            if (navigator.share) {
+                navigator.share({
+                    title: 'نتيجتي في Catch the Ball',
+                    text: shareText,
+                }).then(() => {
+                    console.log('تمت المشاركة بنجاح');
+                }).catch((error) => {
+                    console.error('خطأ في المشاركة:', error);
+                });
+            } else {
+                alert('المشاركة غير مدعومة على هذا الجهاز.');
+            }
+        }
+
         document.addEventListener("keydown", keyDownHandler, false);
         document.addEventListener("keyup", keyUpHandler, false);
+        canvas.addEventListener("touchmove", touchMoveHandler, false);
+        pauseBtn.addEventListener("click", pauseGame);
 
         backgroundImage.onload = function () {
             createObstacles();
